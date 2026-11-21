@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1 class="page-title">Welcome, {{ profile.full_name or profile.username }}</h1>
+
+<div class="dash-grid">
+  <section class="id-card" aria-labelledby="id-card-title">
+    <div class="id-card__head">
+      <h2 id="id-card-title">Your profile</h2>
+      <span class="role-pill role-pill--{{ profile.role }}">{{ 'Administrator' if profile.role == 'admin' else 'Standard user' }}</span>
+    </div>
+    <dl class="id-card__fields">
+      <div><dt>Username</dt><dd>{{ profile.username }}</dd></div>
+      <div><dt>Full name</dt><dd>{{ profile.full_name or 'Not given' }}</dd></div>
+      <div><dt>Email</dt><dd class="wrap-anywhere">{{ profile.email or 'Not given' }}</dd></div>
+      <div><dt>Member since</dt><dd>{{ profile.created_at }} UTC</dd></div>
+      <div><dt>Last sign-in</dt><dd>{{ profile.last_login or 'This is your first' }}{% if profile.last_login %} UTC{% endif %}</dd></div>
+    </dl>
+    <p class="id-card__serial" aria-hidden="true">No. {{ '%06d' % profile.id }}</p>
+  </section>
+
+  <section class="sheet session-card" aria-labelledby="session-title">
+    <h2 id="session-title">Your session</h2>
+    {% if secure_mode %}
+      <ul class="checks">
+        <li class="check check--ok">Cookie is encrypted with Fernet (AES-128 + HMAC-SHA256). Its contents can't be read or changed.</li>
+        <li class="check check--ok">Sent over HTTPS only, hidden from JavaScript, never sent by other sites.</li>
+        <li class="check check--ok">Ends after 30 minutes of inactivity. Signing out revokes it on the server.</li>
+      </ul>
+      <p class="session-card__count">Signed in on <strong>{{ sessions }}</strong> {{ 'device' if sessions == 1 else 'devices' }}.</p>
+      <form method="post" action="{{ url_for('auth.logout_everywhere') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="button button--ghost button--small" type="submit">Sign out on all devices</button>
+      </form>
+    {% else %}
+      <ul class="checks">
+        <li class="check check--bad">Cookie is only signed. Base64-decode it and you'll see your id, username and role.</li>
+        <li class="check check--bad">Readable from JavaScript, so a single XSS comment can steal it.</li>
+        <li class="check check--bad">Sent over plain HTTP, with a guessable signing key (<code>dev</code>).</li>
+      </ul>
+    {% endif %}
+  </section>
+</div>
+
+<section class="section guestbook" id="guestbook" aria-labelledby="guestbook-title">
+  <div class="guestbook__head">
+    <h2 class="section__title" id="guestbook-title">Guestbook</h2>
+    <p class="muted">Everyone who signs in sees these comments{% if not secure_mode %}, which is what makes stored XSS dangerous{% endif %}.</p>
+  </div>
+
+  <form method="post" action="{{ url_for('main.post_comment') }}" class="comment-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="field">
+      <span class="field__label">Leave a comment</span>
+      <textarea name="body" rows="3" {% if secure_mode %}maxlength="{{ max_comment }}"{% endif %} required></textarea>
+      <span class="field__hint">
+        {% if secure_mode %}Plain text, up to {{ max_comment }} characters. Any HTML is removed.
+        {% else %}Try <code>&lt;script&gt;alert(document.cookie)&lt;/script&gt;</code>{% endif %}
+      </span>
+    </label>
+    <button class="button" type="submit">Post comment</button>
+  </form>
+
+  {% if comments %}
+    <ol class="comments">
+      {% for c in comments %}
+        <li class="comment">
+          <p class="comment__meta"><strong>{{ c.username }}</strong>{% if c.role == 'admin' %} <span class="role-pill role-pill--admin">Admin</span>{% endif %} <time>{{ c.created_at }}</time></p>
+          {# SECURE: {{ c.body }} is autoescaped - < > & " ' become HTML entities.
+             VULNERABLE: |safe turns escaping off, so stored HTML/JS runs. #}
+          <div class="comment__body">{% if secure_mode %}{{ c.body }}{% else %}{{ c.body|safe }}{% endif %}</div>
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p class="empty">No comments yet. Post the first one above.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<section class="sheet error-sheet">
+  <p class="error-sheet__code">{{ code }}</p>
+  <h1 class="page-title">{{ title }}</h1>
+  <p>{{ body }}</p>
+  <p><a class="button button--ghost" href="{{ url_for('main.dashboard') if current_user else url_for('main.index') }}">
+    {{ 'Back to dashboard' if current_user else 'Back to home' }}</a></p>
+</section>
+{% endblock %}

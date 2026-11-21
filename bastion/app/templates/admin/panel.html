@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Admin{% endblock %}
+{% block content %}
+<h1 class="page-title">Admin</h1>
+{% if not secure_mode and current_user.role != 'admin' %}
+  <p class="notice notice--error">You're a standard user, yet you're on the admin page. In this build the server only checks
+    that you're signed in, not what your role is. The secure build answers this URL with 403 Forbidden.</p>
+{% endif %}
+
+<section class="section" aria-labelledby="users-title">
+  <h2 class="section__title" id="users-title">Users and roles</h2>
+  <div class="table-scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">User</th>
+          <th scope="col">Role</th>
+          <th scope="col">Password storage</th>
+          <th scope="col">Joined (UTC)</th>
+          <th scope="col"><span class="visually-hidden">Change role</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+          <tr>
+            <td><strong>{{ u.username }}</strong>{% if u.full_name %}<br><span class="muted">{{ u.full_name }}</span>{% endif %}</td>
+            <td><span class="role-pill role-pill--{{ u.role }}">{{ 'Admin' if u.role == 'admin' else 'User' }}</span></td>
+            <td>
+              {{ u.hash_kind }}
+              {% if u.password_hash %}<br><code class="hash">{{ u.password_hash }}</code>{% endif %}
+            </td>
+            <td>{{ u.created_at }}</td>
+            <td class="table__action">
+              <form method="post" action="{{ url_for('admin.change_role', user_id=u.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if u.role == 'admin' %}
+                  <input type="hidden" name="role" value="user">
+                  <button class="button button--ghost button--small" type="submit">Make standard user</button>
+                {% else %}
+                  <input type="hidden" name="role" value="admin">
+                  <button class="button button--small" type="submit">Make admin</button>
+                {% endif %}
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not secure_mode %}
+    <p class="muted">Unsalted MD5 hashes are shown above. Paste one into any online MD5 lookup to see how quickly common passwords fall.</p>
+  {% endif %}
+</section>
+
+<section class="section" id="moderation" aria-labelledby="moderation-title">
+  <h2 class="section__title" id="moderation-title">Comment moderation</h2>
+  {% if comments %}
+    <ul class="mod-list">
+      {% for c in comments %}
+        <li class="mod-item">
+          <div>
+            <p class="comment__meta"><strong>{{ c.username }}</strong> <time>{{ c.created_at }}</time></p>
+            {# Always escaped here, in both builds, so moderators can see the raw payload. #}
+            <p class="mod-item__body"><code>{{ c.body }}</code></p>
+          </div>
+          <form method="post" action="{{ url_for('admin.delete_comment', comment_id=c.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="button button--danger button--small" type="submit">Delete</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty">Nothing to moderate.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Security lab{% endblock %}
+{% block content %}
+<header class="lab-head">
+  <h1 class="page-title">Security lab</h1>
+  <p class="lede">Each card is one attack. Try it here in the <strong>{{ mode }}</strong> build, then restart with
+    <code>--mode {{ 'vulnerable' if secure_mode else 'secure' }}</code> and try it again.
+    The result for the build you're running is highlighted.</p>
+</header>
+
+{% set tests = [
+  {
+    'id': 'sqli-login', 'name': 'SQL injection: sign-in bypass', 'where': 'Sign in page, username field',
+    'payload': "admin' --", 'extra': 'Password: anything',
+    'before': "You're signed in as admin without the password. The SQL inspector shows the password check commented out.",
+    'after': 'Incorrect username or password. The inspector shows a ? placeholder: the payload was compared as a literal username.',
+    'code': 'app/models.py :: _authenticate_vulnerable / _authenticate_secure',
+  },
+  {
+    'id': 'sqli-register', 'name': 'SQL injection: make yourself admin', 'where': 'Create account page, full name field',
+    'payload': "Mallory', 'admin')--", 'extra': 'Any username and password',
+    'before': 'The new account is created with the admin role. Sign in and the Admin link appears.',
+    'after': 'The account is a standard user and its full name is stored exactly as typed.',
+    'code': 'app/models.py :: _register_vulnerable / _register_secure',
+  },
+  {
+    'id': 'passwords', 'name': 'Weak password storage', 'where': 'Create account, then run the inspector script',
+    'payload': 'python scripts/inspect_db.py --mode ' ~ mode, 'extra': 'Register with the password 123 first',
+    'before': 'The password 123 is accepted and stored as the MD5 hash 202cb962ac59075b964b07152d234b70, which any lookup site reverses instantly.',
+    'after': "123 is rejected with a list of missing requirements. Stored hashes look like $2b$12$…, salted and slow to guess.",
+    'code': 'app/security/passwords.py',
+  },
+  {
+    'id': 'xss', 'name': 'Stored cross-site scripting', 'where': 'Dashboard, guestbook',
+    'payload': '<script>alert(document.cookie)</script>', 'extra': 'Also try: <img src=x onerror=alert(1)>',
+    'before': "A pop-up shows the session cookie for every visitor who opens the dashboard.",
+    'after': 'No pop-up. Tags are removed on input, output is escaped, and the CSP header blocks inline scripts.',
+    'code': 'app/security/sanitize.py, templates/dashboard.html',
+  },
+  {
+    'id': 'rbac', 'name': 'Broken access control', 'where': 'Sign in as alice, then open /admin',
+    'payload': url_for('admin.panel', _external=True), 'extra': 'alice / Alice@2026!',
+    'before': 'alice sees every user and can promote herself to admin.',
+    'after': '403 Forbidden. Every admin route checks the role stored in the database.',
+    'code': 'app/security/access.py :: role_required',
+  },
+  {
+    'id': 'crypto', 'name': 'Session cookie and transport', 'where': 'Browser dev tools, Application tab, Cookies',
+    'payload': 'python scripts/inspect_cookie.py "<cookie value>"', 'extra': 'Copy the cookie value after signing in',
+    'before': 'Over http://, the cookie decodes to readable JSON with your id, username and role. Not HttpOnly.',
+    'after': 'Over https:// only. The cookie is a Fernet token (gAAAAA…) that decodes to nothing readable; flags are Secure, HttpOnly, SameSite=Strict.',
+    'code': 'app/security/session.py, app/security/tls.py',
+  },
+] %}
+
+<div class="lab-grid">
+  {% for t in tests %}
+    <article class="lab-card" id="{{ t.id }}">
+      <h2 class="lab-card__title">{{ t.name }}</h2>
+      <p class="lab-card__where">{{ t.where }}</p>
+      <div class="payload-row">
+        <pre class="payload"><code id="payload-{{ t.id }}">{{ t.payload }}</code></pre>
+        <button type="button" class="copy" data-copy="payload-{{ t.id }}">Copy</button>
+      </div>
+      <p class="lab-card__extra">{{ t.extra }}</p>
+      <dl class="outcomes">
+        <div class="outcome outcome--before {{ 'is-current' if not secure_mode }}">
+          <dt>Vulnerable build</dt><dd>{{ t.before }}</dd>
+        </div>
+        <div class="outcome outcome--after {{ 'is-current' if secure_mode }}">
+          <dt>Secure build</dt><dd>{{ t.after }}</dd>
+        </div>
+      </dl>
+      <p class="lab-card__code"><code>{{ t.code }}</code></p>
+    </article>
+  {% endfor %}
+</div>
+
+<section class="section">
+  <h2 class="section__title">Extra hardening in the secure build</h2>
+  <ul class="extras">
+    <li><strong>Logout that sticks.</strong> Sign out, press Back or paste the dashboard URL: you land on sign-in. Pages are sent with <code>Cache-Control: no-store</code> and the session id is deleted on the server, so even a copied cookie stops working.</li>
+    <li><strong>CSRF tokens.</strong> Every form carries a random token. A POST without it gets 400.</li>
+    <li><strong>Login throttling.</strong> Five wrong passwords for one account pauses sign-in for five minutes (HTTP 429).</li>
+    <li><strong>Security headers.</strong> CSP, HSTS, X-Frame-Options, nosniff and Referrer-Policy on every response.</li>
+    <li><strong>Session fixation.</strong> The session is replaced with a new one at sign-in.</li>
+    <li><strong>Encrypted email.</strong> Email addresses are encrypted at rest with a separate key from the session cookie.</li>
+  </ul>
+  <p class="muted">Every check on this page is automated in <code>tests/test_security.py</code>. Run <code>python -m unittest -v</code> to attack both builds at once.</p>
+</section>
+{% endblock %}

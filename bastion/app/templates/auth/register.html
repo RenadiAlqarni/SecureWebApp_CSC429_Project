@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Create account{% endblock %}
+{% block content %}
+<div class="form-layout">
+  <section class="sheet form-sheet">
+    <h1 class="page-title">Create account</h1>
+    <p class="muted">Only a username and password are required.</p>
+
+    <form method="post" action="{{ url_for('auth.register') }}" class="form" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <label class="field">
+        <span class="field__label">Username</span>
+        <input name="username" value="{{ form.username }}" autocomplete="username" required
+               {% if secure_mode %}maxlength="32" pattern="[A-Za-z0-9_.\-]{3,32}"{% endif %}>
+        {% if secure_mode %}<span class="field__hint">3–32 characters: letters, numbers, dot, dash or underscore.</span>{% endif %}
+      </label>
+
+      <label class="field">
+        <span class="field__label">Full name <span class="optional">optional</span></span>
+        <input name="full_name" value="{{ form.full_name }}" autocomplete="name" {% if secure_mode %}maxlength="80"{% endif %}>
+      </label>
+
+      <label class="field">
+        <span class="field__label">Email <span class="optional">optional</span></span>
+        <input name="email" type="email" value="{{ form.email }}" autocomplete="email">
+        {% if secure_mode %}<span class="field__hint">Stored encrypted. Only you and administrators can see it.</span>{% endif %}
+      </label>
+
+      <div class="field">
+        <label class="field__label" for="password">Password</label>
+        <div class="password-input">
+          <input id="password" name="password" type="password" autocomplete="new-password" required
+                 aria-describedby="password-rules" data-policy-input>
+          <button type="button" class="reveal" data-reveal="password" aria-pressed="false">Show</button>
+        </div>
+      </div>
+
+      {% if secure_mode %}
+        <div class="rules" id="password-rules">
+          <p class="rules__title">Your password needs</p>
+          <ul class="rules__list">
+            {% for key, pattern, label in policy %}
+              <li class="rule" data-rule="{{ key }}" data-pattern="{{ pattern }}">{{ label }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% else %}
+        <p class="rules rules--off" id="password-rules">
+          No password rules in this build: <code>123</code> is accepted and stored as an unsalted MD5 hash.
+        </p>
+      {% endif %}
+
+      <label class="field">
+        <span class="field__label">Confirm password</span>
+        <input name="confirm" type="password" autocomplete="new-password" required data-confirm-input>
+        <span class="field__hint field__hint--live" data-confirm-status aria-live="polite"></span>
+      </label>
+
+      <button class="button button--wide" type="submit">Create account</button>
+    </form>
+  </section>
+
+  <aside class="side-note">
+    {% if secure_mode %}
+      <h2>What happens to your password</h2>
+      <p>It's hashed with bcrypt at cost 12, with a random salt. The database stores only something like
+        <code class="wrap-anywhere">$2b$12$Qe…</code>, which can't be reversed into your password.</p>
+    {% else %}
+      <h2>Try the injection</h2>
+      <p>Register any username and password, and put this in <em>Full name</em>:</p>
+      <pre class="payload"><code>Mallory', 'admin')--</code></pre>
+      <p>The query closes the string early, sets your role to <code>admin</code> and comments out the rest.
+        Sign in and the Admin link appears.</p>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

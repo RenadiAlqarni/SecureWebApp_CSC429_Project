@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<div class="form-layout">
+  <section class="sheet form-sheet">
+    <h1 class="page-title">Sign in</h1>
+    <form method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}" class="form" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <label class="field">
+        <span class="field__label">Username</span>
+        <input name="username" value="{{ username }}" autocomplete="username" required autofocus>
+      </label>
+
+      <div class="field">
+        <label class="field__label" for="password">Password</label>
+        <div class="password-input">
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+          <button type="button" class="reveal" data-reveal="password" aria-pressed="false">Show</button>
+        </div>
+      </div>
+
+      <button class="button button--wide" type="submit">Sign in</button>
+    </form>
+    <p class="muted form-foot">New here? <a href="{{ url_for('auth.register') }}">Create an account</a>.</p>
+  </section>
+
+  <aside class="side-note">
+    {% if secure_mode %}
+      <h2>Protected sign-in</h2>
+      <p>The username is sent to the database as a bound parameter and the password is checked with bcrypt.
+        After five wrong passwords for the same account, sign-in pauses for five minutes.</p>
+    {% else %}
+      <h2>Try the injection</h2>
+      <p>Type this as the username and anything as the password:</p>
+      <pre class="payload"><code>admin' --</code></pre>
+      <p>Everything after <code>--</code> becomes a comment, so the password check disappears and you're signed in as admin.
+        The SQL inspector shows the query that ran.</p>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}
