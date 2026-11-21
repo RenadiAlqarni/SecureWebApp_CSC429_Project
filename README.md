@@ -12,14 +12,14 @@ Every place where the builds differ is marked in the code with `# VULNERABLE:` a
 so each fix can be read next to the flaw it replaces. A coloured band at the top of every page shows which
 build is running, and the built-in **Security lab** page (`/lab`) lists every attack with a one-click payload.
 
-![Secure build home page](docs/screenshots/secure-home.png)
+![Secure build home page](bastion/docs/screenshots/secure-home.png)
 
 | Same attack (`admin' --`), vulnerable build | Same attack, secure build |
 |---|---|
-| ![SQL injection succeeds](docs/screenshots/vulnerable-sqli-login.png) | ![SQL injection blocked](docs/screenshots/secure-sqli-login.png) |
+| ![SQL injection succeeds](bastion/docs/screenshots/vulnerable-sqli-login.png) | ![SQL injection blocked](bastion/docs/screenshots/secure-sqli-login.png) |
 
 The full write-up (vulnerabilities, fixes, testing table, access-control matrix, challenges) is in
-**[SECURITY_REPORT.md](SECURITY_REPORT.md)**.
+**[SECURITY_REPORT.md](	bastion/SECURITY_REPORT.md)**.
 
 ---
 
